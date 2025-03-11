@@ -7,3 +7,7 @@ __pycache__/
 
 # ignore eval.py
 eval.py
+
+debug.txt
+train_ac.py
+train_dqn.py
