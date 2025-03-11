@@ -2,8 +2,3 @@ tqdm
 requests
 argparse
 torch
-numpy
-
-random
-requests
-
