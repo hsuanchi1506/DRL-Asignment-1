@@ -155,9 +155,13 @@ def get_action(obs):
             passenger_on_taxi = 1
             station_indices = sort_stations_by_distance(taxi_r, taxi_c, station_positions)
             current_station_idx = 0 
+        else:
+            action = random.randint(0, 3)
     elif action == 5:  # dropoff 
         if passenger_on_taxi and d_look == 1 and taxi_pos in station_positions:
             passenger_on_taxi = 0
+        else:
+            action = random.randint(0, 3)
 
 
     if current_station_idx < 4:
