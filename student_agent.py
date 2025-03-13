@@ -141,7 +141,7 @@ def get_action(obs):
     with torch.no_grad():
         logits = policy.logits_table[state_idx]
         if torch.all(logits == 0):
-            action = random.randint(0, 3)
+            probs = torch.ones(6) / 6
         else:
             probs = F.softmax(logits, dim=-1)
             action = torch.distributions.Categorical(probs).sample().item()
@@ -156,12 +156,18 @@ def get_action(obs):
             station_indices = sort_stations_by_distance(taxi_r, taxi_c, station_positions)
             current_station_idx = 0 
         else:
-            action = random.randint(0, 3)
+            # action = random.randint(0, 3)
+            sub_probs = probs[:4]
+            sub_probs = sub_probs / sub_probs.sum()
+            action = torch.distributions.Categorical(sub_probs).sample().item()
     elif action == 5:  # dropoff 
         if passenger_on_taxi and d_look == 1 and taxi_pos in station_positions:
             passenger_on_taxi = 0
         else:
-            action = random.randint(0, 3)
+            # action = random.randint(0, 3)
+            sub_probs = probs[:4]
+            sub_probs = sub_probs / sub_probs.sum()
+            action = torch.distributions.Categorical(sub_probs).sample().item()
 
 
     if current_station_idx < 4:
