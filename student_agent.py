@@ -97,7 +97,7 @@ NUM_ACTIONS = 6
 
 
 policy = PolicyTable(NUM_STATES, NUM_ACTIONS)
-policy.load_state_dict(torch.load("policy_table_final_4.pth", map_location=torch.device('cpu')))
+policy.load_state_dict(torch.load("policy_table6_checkpoint_190000.pth", map_location=torch.device('cpu')))
 policy.eval() 
 
 
