@@ -5,42 +5,43 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-passenger_on_taxi = 0
-next_station = 0
 
-# ------------------------------------------------
-# get_direction、get_discrete_state、encode_state
-# ------------------------------------------------
+passenger_on_taxi = 0
+station_indices = None 
+current_station_idx = 0
+
+
 def get_direction(taxi_r, taxi_c, station_r, station_c):
     dx = station_r - taxi_r
     dy = station_c - taxi_c
     if dx == 0 and dy == 0:
-        return 8  # 0
+        return 8  # 在車站上
     elif dx > 0 and dy > 0:
-        return 0  # 1
+        return 0  # 第一象限
     elif dx > 0 and dy < 0:
-        return 1  # 2
+        return 1  # 第二象限
     elif dx < 0 and dy > 0:
-        return 2  # 3
+        return 2  # 第三象限
     elif dx < 0 and dy < 0:
-        return 3  # 4
+        return 3  # 第四象限
     elif dx == 0 and dy > 0:
-        return 4  # e
+        return 4  # 東
     elif dx == 0 and dy < 0:
-        return 5  # w
+        return 5  # 西
     elif dx > 0 and dy == 0:
-        return 6  # s
+        return 6  # 南
     elif dx < 0 and dy == 0:
-        return 7  # n
+        return 7  # 北
 
-def get_discrete_state(obs, passenger_on_taxi, next_station):
+def get_discrete_state(obs, passenger_on_taxi, target_station):
     (taxi_r, taxi_c,
      s0_r, s0_c, s1_r, s1_c, s2_r, s2_c, s3_r, s3_c,
      obs_n, obs_s, obs_e, obs_w,
      p_look, d_look) = obs
 
+
     station_positions = [(s0_r, s0_c), (s1_r, s1_c), (s2_r, s2_c), (s3_r, s3_c)]
-    station_r, station_c = station_positions[next_station]
+    station_r, station_c = station_positions[target_station]
     direction = get_direction(taxi_r, taxi_c, station_r, station_c)
 
     return (
@@ -48,13 +49,13 @@ def get_discrete_state(obs, passenger_on_taxi, next_station):
         int(obs_n), int(obs_s), int(obs_e), int(obs_w),
         int(p_look), int(d_look),
         int(passenger_on_taxi),
-        next_station
+        target_station
     )
 
 def is_near_station(taxi_pos, station_pos):
     taxi_x, taxi_y = taxi_pos
     station_x, station_y = station_pos
-    return abs(taxi_x - station_x) + abs(taxi_y - station_y) == 1 
+    return abs(taxi_x - station_x) + abs(taxi_y - station_y) == 1  
 
 def encode_state(state_tuple):
     (direction,
@@ -64,14 +65,14 @@ def encode_state(state_tuple):
      next_station) = state_tuple
 
     index = 0
-    # dir (9 )
+    # 車站方向：9 種
     index = index * 9 + direction
-    # obs_n / obs_s / obs_e / obs_w (each 2 )
+    # obs_n / obs_s / obs_e / obs_w (各 2 種)
     index = index * 2 + n_
     index = index * 2 + s_
     index = index * 2 + e_
     index = index * 2 + w_
-    # p_look / d_look / passenger_on_taxi (2)
+    # p_look / d_look / passenger_on_taxi (各 2 種)
     index = index * 2 + p_
     index = index * 2 + d_
     index = index * 2 + on_taxi
@@ -80,6 +81,11 @@ def encode_state(state_tuple):
     return index
 
 
+def sort_stations_by_distance(taxi_r, taxi_c, station_positions):
+    distances = [abs(taxi_r - s[0]) + abs(taxi_c - s[1]) for s in station_positions]
+    return sorted(range(len(station_positions)), key=lambda i: distances[i])
+
+# 定義 PolicyTable
 class PolicyTable(nn.Module):
     def __init__(self, num_states, num_actions):
         super().__init__()
@@ -95,33 +101,17 @@ class PolicyTable(nn.Module):
 NUM_STATES = 9 * (2**4) * (2**3) * 4
 NUM_ACTIONS = 6
 
-
 policy = PolicyTable(NUM_STATES, NUM_ACTIONS)
-policy.load_state_dict(torch.load("policy_table5_checkpoint_200000.pth", map_location=torch.device('cpu')))
-policy.eval() 
-
+policy.load_state_dict(torch.load("policy_table6_checkpoint_410000.pth", map_location=torch.device('cpu')))
+policy.eval()
 
 def get_action(obs):
-    global passenger_on_taxi, next_station
-    
-    state_tuple = get_discrete_state(obs, passenger_on_taxi, next_station)
-    state_idx = encode_state(state_tuple)
-    
-    with torch.no_grad():
-        probs = policy(state_idx)  # shape = (6,)
-    
-    # # optimal
-    # action = torch.argmax(probs).item()
-
-    # sample
-    action = torch.distributions.Categorical(probs).sample().item()
-    
+    global passenger_on_taxi, station_indices, current_station_idx
 
     (taxi_r, taxi_c,
      s0_r, s0_c, s1_r, s1_c, s2_r, s2_c, s3_r, s3_c,
      obs_n, obs_s, obs_e, obs_w,
      p_look, d_look) = obs
-    
 
     station_positions = [
         (s0_r, s0_c),  # station0
@@ -130,24 +120,55 @@ def get_action(obs):
         (s3_r, s3_c)   # station3
     ]
     taxi_pos = (taxi_r, taxi_c)
+
+    if station_indices is None:
+        station_indices = sort_stations_by_distance(taxi_r, taxi_c, station_positions)
+        current_station_idx = 0
+
+    if current_station_idx < 4:
+        target_station = station_indices[current_station_idx]
+    else:
+        current_station_idx = 0
+
+    state_tuple = get_discrete_state(obs, passenger_on_taxi, target_station)
+    state_idx = encode_state(state_tuple)
+
+    with torch.no_grad():
+        probs = policy(state_idx)  # shape = (6,)
+
+    # action = torch.distributions.Categorical(probs).sample().item()
+
+    with torch.no_grad():
+        logits = policy.logits_table[state_idx]
+        if torch.all(logits == 0):
+            action = random.randint(0, 3)
+        else:
+            probs = F.softmax(logits, dim=-1)
+            action = torch.distributions.Categorical(probs).sample().item()
+
+
     
 
-    if action == 4:  # pickup
+
+    if action == 4:  # pickup 
         if not passenger_on_taxi and p_look == 1 and taxi_pos in station_positions:
             passenger_on_taxi = 1
-            next_station = 0
-    
-    elif action == 5:  # dropoff
+            station_indices = sort_stations_by_distance(taxi_r, taxi_c, station_positions)
+            current_station_idx = 0 
+    elif action == 5:  # dropoff 
         if passenger_on_taxi and d_look == 1 and taxi_pos in station_positions:
             passenger_on_taxi = 0
-    
 
-    if next_station < 3:
-        if is_near_station(taxi_pos, station_positions[next_station]):
-            if not p_look and not passenger_on_taxi:
-                next_station += 1
-            if not d_look and passenger_on_taxi:
-                next_station += 1
-    
-    # print(f"passenger_on_taxi: {passenger_on_taxi}, next_station: {next_station}")
+
+    if current_station_idx < 4:
+        target_idx = station_indices[current_station_idx]
+        if not passenger_on_taxi and p_look != 1 and is_near_station(taxi_pos, station_positions[target_idx]):
+            current_station_idx += 1
+        if passenger_on_taxi and d_look != 1 and is_near_station(taxi_pos, station_positions[target_idx]):
+            current_station_idx += 1
+    else:
+        current_station_idx = random.randint(0, 3)
+
+
+    # print(f"passenger_on_taxi: {passenger_on_taxi}, current_station_idx: {current_station_idx}, station_indices: {station_indices}")
     return action
