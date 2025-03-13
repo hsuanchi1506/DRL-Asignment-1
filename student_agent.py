@@ -102,7 +102,7 @@ NUM_STATES = 9 * (2**4) * (2**3) * 4
 NUM_ACTIONS = 6
 
 policy = PolicyTable(NUM_STATES, NUM_ACTIONS)
-policy.load_state_dict(torch.load("policy_table6_checkpoint_410000.pth", map_location=torch.device('cpu')))
+policy.load_state_dict(torch.load("policy_table6_checkpoint_340000.pth", map_location=torch.device('cpu')))
 policy.eval()
 
 def get_action(obs):
