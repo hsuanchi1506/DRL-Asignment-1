@@ -127,6 +127,7 @@ def get_action(obs):
         target_station = station_indices[current_station_idx]
     else:
         current_station_idx = 0
+        target_station = station_indices[current_station_idx]
 
     state_tuple = get_discrete_state(obs, passenger_on_taxi, target_station)
     state_idx = encode_state(state_tuple)
