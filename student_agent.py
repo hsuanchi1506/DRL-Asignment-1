@@ -140,7 +140,8 @@ def get_action(obs):
     with torch.no_grad():
         logits = policy.logits_table[state_idx]
         if torch.all(logits == 0):
-            probs = torch.ones(6) / 6
+            # probs = torch.ones(6) / 6
+            action = random.randint(0, 3)
         else:
             probs = F.softmax(logits, dim=-1)
             action = torch.distributions.Categorical(probs).sample().item()
