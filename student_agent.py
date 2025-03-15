@@ -100,7 +100,7 @@ NUM_ACTIONS = 6
 
 policy = PolicyTable(NUM_STATES, NUM_ACTIONS)
 # policy.load_state_dict(torch.load("policy_table_test4_checkpoint_330000.pth", map_location=torch.device('cpu')))
-policy.load_state_dict(torch.load("policy_table_final_5.pth", map_location=torch.device('cpu')))
+policy.load_state_dict(torch.load("policy_table_final_test5.pth", map_location=torch.device('cpu')))
 policy.eval()
 
 def get_action(obs):
@@ -139,14 +139,14 @@ def get_action(obs):
 
     with torch.no_grad():
         logits = policy.logits_table[state_idx]
-        if torch.all(logits == 0):
-            # haven't seen this state
-            # probs = torch.ones(6) / 6
-            action = random.randint(0, 3)
-        else:
-            probs = F.softmax(logits, dim=-1)
-            # action = torch.argmax(logits).item()
-            action = torch.distributions.Categorical(probs).sample().item()
+        # if torch.all(logits == 0):
+        #     # haven't seen this state
+        #     # probs = torch.ones(6) / 6
+        #     action = random.randint(0, 3)
+        # else:
+        probs = F.softmax(logits, dim=-1)
+        # action = torch.argmax(logits).item()
+        action = torch.distributions.Categorical(probs).sample().item()
 
 
     
