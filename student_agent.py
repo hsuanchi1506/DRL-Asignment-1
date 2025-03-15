@@ -81,6 +81,7 @@ def encode_state(state_tuple):
 
 def sort_stations_by_distance(taxi_r, taxi_c, station_positions):
     distances = [abs(taxi_r - s[0]) + abs(taxi_c - s[1]) for s in station_positions]
+    return [0,1,2,3]
     return sorted(range(len(station_positions)), key=lambda i: distances[i])
 
 class PolicyTable(nn.Module):
