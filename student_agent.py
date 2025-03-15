@@ -33,7 +33,7 @@ def get_direction(taxi_r, taxi_c, station_r, station_c):
     elif dx < 0 and dy == 0:
         return 7  # 北
 
-# 修改後的 state 萃取方法
+
 def get_discrete_state(obs, passenger_on_taxi, target_station):
     (taxi_r, taxi_c,
      s0_r, s0_c, s1_r, s1_c, s2_r, s2_c, s3_r, s3_c,
@@ -41,11 +41,11 @@ def get_discrete_state(obs, passenger_on_taxi, target_station):
      p_look, d_look) = obs
 
     station_positions = [(s0_r, s0_c), (s1_r, s1_c), (s2_r, s2_c), (s3_r, s3_c)]
-    # 依照 target_station 計算目標車站的方向（direction）
+
     station_r, station_c = station_positions[target_station]
     direction = get_direction(taxi_r, taxi_c, station_r, station_c)
     
-    # new_pickup: 當 taxi 尚未載客且 passenger_look 為 1 且 taxi 位置屬於任一車站時為 1
+
     new_pickup = int((not passenger_on_taxi) and (p_look == 1) and ((taxi_r, taxi_c) in station_positions))
     # new_dropoff: 當 taxi 載客且 destination_look 為 1 且 taxi 位置屬於任一車站時為 1
     new_dropoff = int(passenger_on_taxi and (d_look == 1) and ((taxi_r, taxi_c) in station_positions))
@@ -61,19 +61,19 @@ def is_near_station(taxi_pos, station_pos):
     station_x, station_y = station_pos
     return abs(taxi_x - station_x) + abs(taxi_y - station_y) == 1  
 
-# 修改後的 state encoding 方法，將 state tuple 轉換成一個整數 index
+
 def encode_state(state_tuple):
     (direction, n_, s_, e_, w_, new_pickup, new_dropoff) = state_tuple
 
     index = 0
-    # 車站方向：9 種
+    # direction：9
     index = index * 9 + direction
-    # 四個方向觀測值（各 2 種）
+    # obstacles sensor（each has 2）
     index = index * 2 + n_
     index = index * 2 + s_
     index = index * 2 + e_
     index = index * 2 + w_
-    # new_pickup 與 new_dropoff（各 2 種）
+    # new_pickup & new_dropoff
     index = index * 2 + new_pickup
     index = index * 2 + new_dropoff
     return index
@@ -83,7 +83,6 @@ def sort_stations_by_distance(taxi_r, taxi_c, station_positions):
     distances = [abs(taxi_r - s[0]) + abs(taxi_c - s[1]) for s in station_positions]
     return sorted(range(len(station_positions)), key=lambda i: distances[i])
 
-# 定義 PolicyTable
 class PolicyTable(nn.Module):
     def __init__(self, num_states, num_actions):
         super().__init__()
@@ -100,7 +99,8 @@ NUM_STATES = 9 * (2**4) * (2**2)
 NUM_ACTIONS = 6
 
 policy = PolicyTable(NUM_STATES, NUM_ACTIONS)
-policy.load_state_dict(torch.load("policy_table_test4_checkpoint_330000.pth", map_location=torch.device('cpu')))
+# policy.load_state_dict(torch.load("policy_table_test4_checkpoint_330000.pth", map_location=torch.device('cpu')))
+policy.load_state_dict(torch.load("policy_table_final_5.pth", map_location=torch.device('cpu')))
 policy.eval()
 
 def get_action(obs):
@@ -145,6 +145,7 @@ def get_action(obs):
             action = random.randint(0, 3)
         else:
             probs = F.softmax(logits, dim=-1)
+            # action = torch.argmax(logits).item()
             action = torch.distributions.Categorical(probs).sample().item()
 
 
