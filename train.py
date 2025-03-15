@@ -1,2 +1,2 @@
-for i in range(32842234235435):
-    print("Train Train Train")
+for i in range(10000000):
+    print("Training...")
